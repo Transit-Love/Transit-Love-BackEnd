@@ -1,6 +1,9 @@
 HELP.md
 .gradle
 .env
+start-server.sh
+test-chat-list-api.sh
+test-profile-list-api.sh
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
