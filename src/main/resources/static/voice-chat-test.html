@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>음성 채팅 테스트</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        .input-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .btn-danger {
+            background: #f44336;
+        }
+        .btn-danger:hover {
+            background: #da190b;
+        }
+        .btn-warning {
+            background: #ff9800;
+        }
+        .btn-warning:hover {
+            background: #e68900;
+        }
+        #status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status-calling {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        #log {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #3498db;
+            padding-left: 10px;
+        }
+        .log-error {
+            border-left-color: #e74c3c;
+        }
+        .log-success {
+            border-left-color: #2ecc71;
+        }
+        .voice-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #2196F3;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 음성 채팅 테스트</h1>
+
+        <div class="info-box">
+            <strong>ℹ️ 안내:</strong> 이 페이지는 음성 채팅 기능을 테스트하기 위한 도구입니다.
+            음성 변조는 클라이언트에서 처리되며, 서버는 WebRTC signaling만 담당합니다.
+        </div>
+
+        <!-- 연결 설정 -->
+        <div class="section">
+            <h2>1. WebSocket 연결</h2>
+            <div class="input-group">
+                <label for="jwtToken">JWT 토큰:</label>
+                <input type="text" id="jwtToken" placeholder="Bearer 토큰을 입력하세요">
+            </div>
+            <div class="input-group">
+                <label for="profileId">내 프로필 ID:</label>
+                <input type="number" id="profileId" placeholder="프로필 ID">
+            </div>
+            <button id="connectBtn" onclick="connect()">연결</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled class="btn-danger">연결 해제</button>
+            <div id="status" class="status-disconnected">연결 안됨</div>
+        </div>
+
+        <!-- 음성 채팅 설정 -->
+        <div class="section">
+            <h2>2. 음성 채팅 설정</h2>
+            <div class="input-group">
+                <label for="chatRoomId">채팅방 ID:</label>
+                <input type="number" id="chatRoomId" placeholder="채팅방 ID">
+            </div>
+            <div class="input-group">
+                <label for="partnerProfileId">상대방 프로필 ID:</label>
+                <input type="number" id="partnerProfileId" placeholder="상대방 프로필 ID">
+            </div>
+            <button onclick="getRoomInfo()">채팅방 정보 조회</button>
+        </div>
+
+        <!-- 음성 통화 컨트롤 -->
+        <div class="section">
+            <h2>3. 음성 통화</h2>
+            <div class="voice-controls">
+                <button onclick="startCall()" id="callBtn" disabled>📞 통화 시작</button>
+                <button onclick="acceptCall()" id="acceptBtn" disabled class="btn-warning">✅ 통화 수락</button>
+                <button onclick="rejectCall()" id="rejectBtn" disabled class="btn-danger">❌ 통화 거절</button>
+                <button onclick="endCall()" id="endBtn" disabled class="btn-danger">📵 통화 종료</button>
+            </div>
+            <div style="margin-top: 15px;">
+                <button onclick="testWebRTC()" disabled id="webrtcBtn">🔊 WebRTC 테스트</button>
+            </div>
+        </div>
+
+        <!-- 로그 -->
+        <div class="section">
+            <h2>4. 로그</h2>
+            <div id="log"></div>
+            <button onclick="clearLog()">로그 지우기</button>
+        </div>
+    </div>
+
+    <script>
+        let stompClient = null;
+        let currentProfileId = null;
+        let currentChatRoomId = null;
+        let currentPartnerProfileId = null;
+        let peerConnection = null;
+        let localStream = null;
+
+        // WebRTC Configuration
+        const rtcConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function updateStatus(message, className) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = className;
+        }
+
+        function connect() {
+            const token = document.getElementById('jwtToken').value;
+            const profileId = document.getElementById('profileId').value;
+
+            if (!token || !profileId) {
+                alert('JWT 토큰과 프로필 ID를 입력하세요.');
+                return;
+            }
+
+            currentProfileId = parseInt(profileId);
+
+            const socket = new SockJS('http://localhost:8080/ws');
+            stompClient = Stomp.over(socket);
+
+            // 연결 헤더에 JWT 토큰 추가
+            const headers = {
+                'Authorization': token
+            };
+
+            stompClient.connect(headers, function(frame) {
+                log('WebSocket 연결 성공', 'success');
+                updateStatus('연결됨', 'status-connected');
+
+                // 내 큐 구독 (음성 시그널 수신용)
+                stompClient.subscribe('/queue/voice.' + currentProfileId, function(message) {
+                    handleVoiceSignal(JSON.parse(message.body));
+                });
+
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('disconnectBtn').disabled = false;
+                document.getElementById('callBtn').disabled = false;
+                document.getElementById('webrtcBtn').disabled = false;
+
+                log('음성 채팅 큐 구독 완료: /queue/voice.' + currentProfileId, 'success');
+            }, function(error) {
+                log('WebSocket 연결 실패: ' + error, 'error');
+                updateStatus('연결 실패', 'status-disconnected');
+            });
+        }
+
+        function disconnect() {
+            if (stompClient !== null) {
+                stompClient.disconnect();
+                log('WebSocket 연결 해제', 'info');
+            }
+            updateStatus('연결 안됨', 'status-disconnected');
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('disconnectBtn').disabled = true;
+            document.getElementById('callBtn').disabled = true;
+            document.getElementById('acceptBtn').disabled = true;
+            document.getElementById('rejectBtn').disabled = true;
+            document.getElementById('endBtn').disabled = true;
+            document.getElementById('webrtcBtn').disabled = true;
+        }
+
+        function getRoomInfo() {
+            const chatRoomId = document.getElementById('chatRoomId').value;
+            const token = document.getElementById('jwtToken').value;
+
+            if (!chatRoomId || !token) {
+                alert('채팅방 ID와 JWT 토큰을 입력하세요.');
+                return;
+            }
+
+            fetch(`http://localhost:8080/api/voice/room/${chatRoomId}`, {
+                headers: {
+                    'Authorization': token
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                log('채팅방 정보: ' + JSON.stringify(data), 'success');
+                document.getElementById('partnerProfileId').value = data.partnerProfileId;
+                currentChatRoomId = data.chatRoomId;
+                currentPartnerProfileId = data.partnerProfileId;
+            })
+            .catch(error => {
+                log('채팅방 정보 조회 실패: ' + error, 'error');
+            });
+        }
+
+        function startCall() {
+            currentChatRoomId = parseInt(document.getElementById('chatRoomId').value);
+            currentPartnerProfileId = parseInt(document.getElementById('partnerProfileId').value);
+
+            if (!currentChatRoomId || !currentPartnerProfileId) {
+                alert('채팅방 ID와 상대방 프로필 ID를 입력하세요.');
+                return;
+            }
+
+            const message = {
+                type: 'VOICE_CALL_REQUEST',
+                chatRoomId: currentChatRoomId,
+                fromProfileId: currentProfileId,
+                toProfileId: currentPartnerProfileId,
+                timestamp: Date.now()
+            };
+
+            stompClient.send('/app/voice/signal', {}, JSON.stringify(message));
+            log('통화 요청 전송', 'info');
+            updateStatus('통화 요청 중...', 'status-calling');
+            document.getElementById('callBtn').disabled = true;
+            document.getElementById('endBtn').disabled = false;
+        }
+
+        function acceptCall() {
+            const message = {
+                type: 'VOICE_CALL_ACCEPT',
+                chatRoomId: currentChatRoomId,
+                fromProfileId: currentProfileId,
+                toProfileId: currentPartnerProfileId,
+                timestamp: Date.now()
+            };
+
+            stompClient.send('/app/voice/signal', {}, JSON.stringify(message));
+            log('통화 수락', 'success');
+            updateStatus('통화 중', 'status-calling');
+            document.getElementById('acceptBtn').disabled = true;
+            document.getElementById('rejectBtn').disabled = true;
+            document.getElementById('endBtn').disabled = false;
+
+            // WebRTC Answer 생성 (실제 구현 시)
+            createAnswer();
+        }
+
+        function rejectCall() {
+            const message = {
+                type: 'VOICE_CALL_REJECT',
+                chatRoomId: currentChatRoomId,
+                fromProfileId: currentProfileId,
+                toProfileId: currentPartnerProfileId,
+                timestamp: Date.now()
+            };
+
+            stompClient.send('/app/voice/signal', {}, JSON.stringify(message));
+            log('통화 거절', 'info');
+            updateStatus('연결됨', 'status-connected');
+            document.getElementById('acceptBtn').disabled = true;
+            document.getElementById('rejectBtn').disabled = true;
+        }
+
+        function endCall() {
+            const message = {
+                type: 'VOICE_CALL_END',
+                chatRoomId: currentChatRoomId,
+                fromProfileId: currentProfileId,
+                toProfileId: currentPartnerProfileId,
+                timestamp: Date.now()
+            };
+
+            stompClient.send('/app/voice/signal', {}, JSON.stringify(message));
+            log('통화 종료', 'info');
+            updateStatus('연결됨', 'status-connected');
+            document.getElementById('callBtn').disabled = false;
+            document.getElementById('endBtn').disabled = true;
+
+            // WebRTC 연결 종료
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+        }
+
+        function handleVoiceSignal(message) {
+            log('시그널 수신: ' + message.type, 'info');
+
+            switch (message.type) {
+                case 'VOICE_CALL_REQUEST':
+                    log('통화 요청 받음 - 발신자: ' + message.fromProfileId, 'success');
+                    updateStatus('통화 요청 받음', 'status-calling');
+                    currentChatRoomId = message.chatRoomId;
+                    currentPartnerProfileId = message.fromProfileId;
+                    document.getElementById('acceptBtn').disabled = false;
+                    document.getElementById('rejectBtn').disabled = false;
+                    break;
+
+                case 'VOICE_CALL_ACCEPT':
+                    log('통화 수락됨', 'success');
+                    updateStatus('통화 중', 'status-calling');
+                    // WebRTC Offer 생성
+                    createOffer();
+                    break;
+
+                case 'VOICE_CALL_REJECT':
+                    log('통화 거절됨', 'error');
+                    updateStatus('연결됨', 'status-connected');
+                    document.getElementById('callBtn').disabled = false;
+                    document.getElementById('endBtn').disabled = true;
+                    break;
+
+                case 'VOICE_CALL_END':
+                    log('통화 종료됨', 'info');
+                    updateStatus('연결됨', 'status-connected');
+                    document.getElementById('callBtn').disabled = false;
+                    document.getElementById('endBtn').disabled = true;
+                    document.getElementById('acceptBtn').disabled = true;
+                    document.getElementById('rejectBtn').disabled = true;
+                    if (peerConnection) {
+                        peerConnection.close();
+                        peerConnection = null;
+                    }
+                    break;
+
+                case 'OFFER':
+                    log('WebRTC Offer 수신', 'info');
+                    handleOffer(message);
+                    break;
+
+                case 'ANSWER':
+                    log('WebRTC Answer 수신', 'info');
+                    handleAnswer(message);
+                    break;
+
+                case 'ICE_CANDIDATE':
+                    log('ICE Candidate 수신', 'info');
+                    handleIceCandidate(message);
+                    break;
+
+                case 'ERROR':
+                    log('에러: ' + message.errorMessage, 'error');
+                    break;
+            }
+        }
+
+        // WebRTC 함수들
+        async function testWebRTC() {
+            try {
+                log('마이크 권한 요청 중...', 'info');
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                log('마이크 권한 획득 성공', 'success');
+
+                // 음성 변조 테스트 (여기서는 간단히 AudioContext 사용)
+                const audioContext = new AudioContext();
+                const source = audioContext.createMediaStreamSource(localStream);
+                const destination = audioContext.createMediaStreamDestination();
+
+                log('AudioContext 생성 완료 - 음성 변조 준비됨', 'success');
+                log('클라이언트에서 음성 변조 처리 가능', 'success');
+
+                // 테스트 후 스트림 정리
+                setTimeout(() => {
+                    localStream.getTracks().forEach(track => track.stop());
+                    localStream = null;
+                    log('테스트 완료 - 마이크 스트림 해제', 'info');
+                }, 2000);
+
+            } catch (error) {
+                log('마이크 권한 획득 실패: ' + error, 'error');
+            }
+        }
+
+        async function createOffer() {
+            try {
+                log('WebRTC Offer 생성 시작', 'info');
+
+                // 마이크 스트림 획득
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+
+                // PeerConnection 생성
+                peerConnection = new RTCPeerConnection(rtcConfig);
+
+                // 로컬 스트림 추가
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+
+                // ICE Candidate 이벤트 처리
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        sendIceCandidate(event.candidate);
+                    }
+                };
+
+                // Offer 생성
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+
+                // Offer 전송
+                const message = {
+                    type: 'OFFER',
+                    chatRoomId: currentChatRoomId,
+                    fromProfileId: currentProfileId,
+                    toProfileId: currentPartnerProfileId,
+                    sdp: offer.sdp,
+                    timestamp: Date.now()
+                };
+
+                stompClient.send('/app/voice/signal', {}, JSON.stringify(message));
+                log('WebRTC Offer 전송 완료', 'success');
+
+            } catch (error) {
+                log('Offer 생성 실패: ' + error, 'error');
+            }
+        }
+
+        async function createAnswer() {
+            try {
+                log('WebRTC Answer 생성 시작', 'info');
+                // Answer 생성 로직은 Offer를 받은 후 처리
+                // (handleOffer에서 처리)
+            } catch (error) {
+                log('Answer 생성 실패: ' + error, 'error');
+            }
+        }
+
+        async function handleOffer(message) {
+            try {
+                // 마이크 스트림 획득
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+
+                // PeerConnection 생성
+                peerConnection = new RTCPeerConnection(rtcConfig);
+
+                // 로컬 스트림 추가
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+
+                // ICE Candidate 이벤트 처리
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        sendIceCandidate(event.candidate);
+                    }
+                };
+
+                // Remote Description 설정
+                await peerConnection.setRemoteDescription(new RTCSessionDescription({
+                    type: 'offer',
+                    sdp: message.sdp
+                }));
+
+                // Answer 생성
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+
+                // Answer 전송
+                const responseMessage = {
+                    type: 'ANSWER',
+                    chatRoomId: currentChatRoomId,
+                    fromProfileId: currentProfileId,
+                    toProfileId: currentPartnerProfileId,
+                    sdp: answer.sdp,
+                    timestamp: Date.now()
+                };
+
+                stompClient.send('/app/voice/signal', {}, JSON.stringify(responseMessage));
+                log('WebRTC Answer 전송 완료', 'success');
+
+            } catch (error) {
+                log('Offer 처리 실패: ' + error, 'error');
+            }
+        }
+
+        async function handleAnswer(message) {
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription({
+                    type: 'answer',
+                    sdp: message.sdp
+                }));
+                log('Answer 처리 완료 - 연결 수립 중', 'success');
+            } catch (error) {
+                log('Answer 처리 실패: ' + error, 'error');
+            }
+        }
+
+        async function handleIceCandidate(message) {
+            try {
+                if (peerConnection && message.iceCandidate) {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(message.iceCandidate));
+                    log('ICE Candidate 추가 완료', 'success');
+                }
+            } catch (error) {
+                log('ICE Candidate 처리 실패: ' + error, 'error');
+            }
+        }
+
+        function sendIceCandidate(candidate) {
+            const message = {
+                type: 'ICE_CANDIDATE',
+                chatRoomId: currentChatRoomId,
+                fromProfileId: currentProfileId,
+                toProfileId: currentPartnerProfileId,
+                iceCandidate: {
+                    candidate: candidate.candidate,
+                    sdpMid: candidate.sdpMid,
+                    sdpMLineIndex: candidate.sdpMLineIndex
+                },
+                timestamp: Date.now()
+            };
+
+            stompClient.send('/app/voice/signal', {}, JSON.stringify(message));
+            log('ICE Candidate 전송', 'info');
+        }
+    </script>
+</body>
+</html>
+

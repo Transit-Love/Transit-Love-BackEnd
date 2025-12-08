@@ -56,6 +56,7 @@ public class ProfileService {
         Profile profile = Profile.builder()
                 .user(user)
                 .nickname(request.getNickname())
+                .profileImageUrl(request.getProfileImageUrl())
                 .mbti(request.getMbti())
                 .build();
 
@@ -118,7 +119,7 @@ public class ProfileService {
         Map<Long, BalanceGame> balanceGameMap = balanceGames.stream()
                 .collect(Collectors.toMap(BalanceGame::getId, bg -> bg));
 
-        profile.updateProfile(request.getNickname(), request.getMbti());
+        profile.updateProfile(request.getNickname(), request.getMbti(), request.getProfileImageUrl());
 
         profile.clearKeywords();
         for (Keyword keyword : keywords) {

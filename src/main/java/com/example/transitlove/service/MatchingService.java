@@ -158,5 +158,66 @@ public class MatchingService {
         match.unmatch();
         log.info("매칭 해제 완료 - 매칭 ID: {}", matchId);
     }
+
+    /**
+     * 로그인 시 자동 매칭 체크 및 실행
+     * Use Case: 사용자 로그인 시 자동 매칭 체크
+     */
+    @Transactional
+    public void checkAndAutoMatchOnLogin(Long userId) {
+        log.info("로그인 자동 매칭 체크 시작 - 사용자 ID: {}", userId);
+
+        try {
+            // 1. 사용자의 프로필 조회
+            Profile userProfile = profileRepository.findByUserId(userId).orElse(null);
+
+            if (userProfile == null) {
+                log.info("프로필이 없는 사용자 - 매칭 스킵: {}", userId);
+                return;
+            }
+
+            // 2. 이미 매칭되었는지 확인
+            List<Match> existingMatches = matchRepository.findActiveMatchesByProfileId(userProfile.getId());
+            if (!existingMatches.isEmpty()) {
+                log.info("이미 매칭된 사용자 - 프로필 ID: {}, 매칭 수: {}",
+                        userProfile.getId(), existingMatches.size());
+                return;
+            }
+
+            // 3. 자동 매칭 시도
+            log.info("미매칭 사용자 발견 - 자동 매칭 시도: 프로필 ID {}", userProfile.getId());
+
+            // 3-1. 후보 프로필 조회 (자신과 이미 매칭된 사람 제외)
+            List<Long> matchedProfileIds = matchRepository.findAll().stream()
+                    .filter(Match::getIsActive)
+                    .flatMap(match -> List.of(match.getProfile1().getId(), match.getProfile2().getId()).stream())
+                    .distinct()
+                    .collect(Collectors.toList());
+
+            List<Profile> candidateProfiles = profileRepository.findAll().stream()
+                    .filter(profile -> !profile.getId().equals(userProfile.getId()))
+                    .filter(profile -> !matchedProfileIds.contains(profile.getId()))
+                    .collect(Collectors.toList());
+
+            if (candidateProfiles.isEmpty()) {
+                log.info("매칭 가능한 후보가 없음 - 프로필 ID: {}", userProfile.getId());
+                return;
+            }
+
+            // 3-2. 도메인 서비스를 통한 최적 매칭 찾기
+            autoMatchingDomainService.findBestMatchForProfile(userProfile, candidateProfiles)
+                    .ifPresent(match -> {
+                        Match savedMatch = matchRepository.save(match);
+                        log.info("로그인 자동 매칭 성공! - 프로필 {} <-> {}, 유사도: {}%",
+                                savedMatch.getProfile1().getId(),
+                                savedMatch.getProfile2().getId(),
+                                (int)(savedMatch.getSimilarityScore() * 100));
+                    });
+
+        } catch (Exception e) {
+            log.error("로그인 자동 매칭 중 오류 발생 - 사용자 ID: {}, 오류: {}", userId, e.getMessage(), e);
+            // 매칭 실패해도 로그인은 계속 진행되도록 예외를 던지지 않음
+        }
+    }
 }
 
