@@ -1,5 +1,6 @@
 package com.example.transitlove.config;
 
+import com.example.transitlove.jwt.JwtAuthenticationFilter;
 import com.example.transitlove.oauth2.handler.OAuth2AuthenticationFailureHandler;
 import com.example.transitlove.oauth2.handler.OAuth2AuthenticationSuccessHandler;
 import com.example.transitlove.oauth2.service.CustomOAuth2UserService;
@@ -10,6 +11,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -24,6 +26,7 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -33,11 +36,15 @@ public class SecurityConfig {
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/error", "/favicon.ico").permitAll()
                         .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**").permitAll()
                         .requestMatchers("/api/profiles/**").permitAll() // 임시: 테스트용
                         .requestMatchers("/api/init/**").permitAll() // 임시: 초기 데이터 추가용
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/ws/**", "/api/chat/**", "/api/temp-chat/**").authenticated() // 인증 필수로 변경
+                        .requestMatchers("/api/matching/**").authenticated() // 인증 필수로 변경
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
