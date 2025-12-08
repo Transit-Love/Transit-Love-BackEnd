@@ -16,6 +16,7 @@ public class ProfileResponse {
 
     private Long id;
     private String nickname;
+    private String profileImageUrl;
     private String mbti;
     private List<KeywordDto> keywords;
     private List<BalanceGameAnswerDto> balanceGameAnswers;
@@ -44,6 +45,7 @@ public class ProfileResponse {
         return ProfileResponse.builder()
                 .id(profile.getId())
                 .nickname(profile.getNickname())
+                .profileImageUrl(profile.getProfileImageUrl())
                 .mbti(profile.getMbti())
                 .keywords(profile.getProfileKeywords().stream()
                         .map(pk -> KeywordDto.builder()

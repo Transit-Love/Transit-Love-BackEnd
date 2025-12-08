@@ -29,6 +29,9 @@ public class Profile {
     @Column(nullable = false, length = 50)
     private String nickname;
 
+    @Column(length = 500)
+    private String profileImageUrl;
+
     @Column(length = 4)
     private String mbti;
 
@@ -55,9 +58,10 @@ public class Profile {
         updatedAt = LocalDateTime.now();
     }
 
-    public void updateProfile(String nickname, String mbti) {
+    public void updateProfile(String nickname, String mbti, String profileImageUrl) {
         this.nickname = nickname;
         this.mbti = mbti;
+        this.profileImageUrl = profileImageUrl;
     }
 
     public void addKeyword(ProfileKeyword profileKeyword) {
