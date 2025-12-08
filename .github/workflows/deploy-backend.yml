@@ -1,0 +1,53 @@
+name: Deploy Spring Boot Backend to EC2
+
+on:
+  push:
+    branches: ["main"]     # main 브랜치 push할 때 자동 배포
+  workflow_dispatch:        # 수동 실행
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build Spring Boot (Gradle)
+        working-directory: ./backend
+        run: |
+          chmod +x ./gradlew || true
+          ./gradlew clean build -x test
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p build_output
+          # 생성된 JAR 파일을 spring-app.jar 이름으로 통일
+          cp backend/build/libs/*.jar build_output/spring-app.jar
+
+      - name: Upload JAR to EC2
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          source: "build_output/spring-app.jar"
+          target: "~/build/spring-app.jar"
+
+      - name: Run deploy script on EC2
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            chmod +x ~/deploy.sh || true
+            ~/deploy.sh
