@@ -4,6 +4,8 @@ HELP.md
 start-server.sh
 test-chat-list-api.sh
 test-profile-list-api.sh
+test-chatroom-api.sh
+test-admin-chat-api.sh
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
