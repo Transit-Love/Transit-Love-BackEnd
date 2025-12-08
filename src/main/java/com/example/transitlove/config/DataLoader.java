@@ -146,22 +146,27 @@ public class DataLoader implements CommandLineRunner {
             log.info("총 {} 개의 테스트 프로필 생성 완료", testUsers.length);
         }
 
-        // 자동 매칭 실행
-        try {
-            log.info("자동 매칭 시작...");
-            List<Match> matches = matchingService.autoMatchAllProfiles();
-            log.info("자동 매칭 완료! {} 개의 커플이 생성되었습니다.", matches.size());
+        // 자동 매칭 실행 (초기 데이터 생성 시에만)
+        // 이미 매칭이 있으면 자동 매칭을 실행하지 않음 (서버 재시작 시 매칭 보존)
+        if (userRepository.count() <= 2) { // 관리자만 있는 경우 (초기 상태)
+            try {
+                log.info("자동 매칭 시작...");
+                List<Match> matches = matchingService.autoMatchAllProfiles();
+                log.info("자동 매칭 완료! {} 개의 커플이 생성되었습니다.", matches.size());
 
-            matches.forEach(match -> {
-                log.info("💑 매칭: {} ({}) ❤️ {} ({}) - 유사도: {}%",
-                        match.getProfile1().getNickname(),
-                        match.getProfile1().getMbti(),
-                        match.getProfile2().getNickname(),
-                        match.getProfile2().getMbti(),
-                        (int)(match.getSimilarityScore() * 100));
-            });
-        } catch (Exception e) {
-            log.warn("자동 매칭 실패: {}", e.getMessage());
+                matches.forEach(match -> {
+                    log.info("💑 매칭: {} ({}) ❤️ {} ({}) - 유사도: {}%",
+                            match.getProfile1().getNickname(),
+                            match.getProfile1().getMbti(),
+                            match.getProfile2().getNickname(),
+                            match.getProfile2().getMbti(),
+                            (int)(match.getSimilarityScore() * 100));
+                });
+            } catch (Exception e) {
+                log.warn("자동 매칭 실패: {}", e.getMessage());
+            }
+        } else {
+            log.info("기존 사용자 데이터 존재 - 자동 매칭 건너뜀 (서버 재시작)");
         }
 
         log.info("초기 데이터 로딩 완료!");
