@@ -13,13 +13,15 @@ import jakarta.validation.constraints.NotNull;
 @Builder
 public class VoiceMuteRequest {
 
+    @NotNull(message = "채팅방 ID는 필수입니다.")
+    private Long chatRoomId;
+
     @NotNull(message = "프로필 ID는 필수입니다.")
     private Long profileId;
 
     @NotNull(message = "음소거 상태는 필수입니다.")
     private Boolean isMuted;
 
-    @NotNull(message = "타임스탬프는 필수입니다.")
     private Long timestamp;
 }
 

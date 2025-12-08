@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>음성 채팅 시그널링 테스트</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 20px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button.disconnect {
+            background-color: #f44336;
+        }
+        button.disconnect:hover {
+            background-color: #da190b;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .status.connected {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .status.disconnected {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        .log {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 5px;
+        }
+        .log-entry.sent {
+            background-color: #e3f2fd;
+        }
+        .log-entry.received {
+            background-color: #fff3e0;
+        }
+        .log-entry.error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .log-entry.info {
+            background-color: #e8f5e9;
+        }
+        .signal-type {
+            font-weight: bold;
+            color: #1976d2;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 11px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>🎤 음성 채팅 시그널링 테스트</h1>
+
+    <div class="container">
+        <h2>연결 설정</h2>
+        <div class="input-group">
+            <label for="jwtToken">JWT 토큰:</label>
+            <input type="text" id="jwtToken" placeholder="Bearer 토큰을 입력하세요" />
+        </div>
+        <div class="input-group">
+            <label for="chatRoomId">채팅방 ID:</label>
+            <input type="number" id="chatRoomId" value="1" />
+        </div>
+        <div class="input-group">
+            <label for="myProfileId">내 프로필 ID:</label>
+            <input type="number" id="myProfileId" value="1" />
+        </div>
+        <div class="input-group">
+            <label for="partnerProfileId">상대방 프로필 ID:</label>
+            <input type="number" id="partnerProfileId" value="2" />
+        </div>
+
+        <button onclick="connect()">연결</button>
+        <button class="disconnect" onclick="disconnect()">연결 해제</button>
+
+        <div id="connectionStatus" class="status disconnected">
+            ❌ 연결되지 않음
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="container">
+            <h2>시그널 전송</h2>
+
+            <div class="input-group">
+                <label for="signalType">시그널 타입:</label>
+                <select id="signalType" onchange="updateSignalUI()">
+                    <option value="VOICE_CALL_REQUEST">통화 요청 (VOICE_CALL_REQUEST)</option>
+                    <option value="VOICE_CALL_ACCEPT">통화 수락 (VOICE_CALL_ACCEPT)</option>
+                    <option value="VOICE_CALL_REJECT">통화 거절 (VOICE_CALL_REJECT)</option>
+                    <option value="VOICE_CALL_END">통화 종료 (VOICE_CALL_END)</option>
+                    <option value="VOICE_CALL_CANCEL">통화 취소 (VOICE_CALL_CANCEL)</option>
+                    <option value="OFFER">WebRTC Offer</option>
+                    <option value="ANSWER">WebRTC Answer</option>
+                    <option value="ICE_CANDIDATE">ICE Candidate</option>
+                    <option value="MUTE_STATUS_CHANGED">음소거 상태 변경</option>
+                    <option value="SPEAKER_STATUS_CHANGED">스피커 상태 변경</option>
+                </select>
+            </div>
+
+            <div id="sdpGroup" class="input-group" style="display: none;">
+                <label for="sdp">SDP:</label>
+                <input type="text" id="sdp" placeholder="SDP 정보 (OFFER/ANSWER)" />
+            </div>
+
+            <div id="candidateGroup" class="input-group" style="display: none;">
+                <label for="candidate">ICE Candidate:</label>
+                <input type="text" id="candidate" placeholder="candidate" />
+                <input type="text" id="sdpMid" placeholder="sdpMid" style="margin-top: 5px;" />
+                <input type="number" id="sdpMLineIndex" placeholder="sdpMLineIndex" style="margin-top: 5px;" />
+            </div>
+
+            <div id="muteGroup" class="input-group" style="display: none;">
+                <label>
+                    <input type="checkbox" id="isMuted" />
+                    음소거 상태 (isMuted)
+                </label>
+            </div>
+
+            <div id="speakerGroup" class="input-group" style="display: none;">
+                <label>
+                    <input type="checkbox" id="isSpeakerOn" />
+                    스피커 상태 (isSpeakerOn)
+                </label>
+            </div>
+
+            <button onclick="sendSignal()">시그널 전송</button>
+            <button onclick="clearLog()">로그 초기화</button>
+        </div>
+
+        <div class="container">
+            <h2>수신 로그</h2>
+            <div id="log" class="log">
+                <div class="log-entry info">
+                    <span class="timestamp">[시작]</span> 시그널링 테스트 준비 완료
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stompClient = null;
+        let subscription = null;
+
+        function updateSignalUI() {
+            const signalType = document.getElementById('signalType').value;
+
+            // 모든 옵션 숨기기
+            document.getElementById('sdpGroup').style.display = 'none';
+            document.getElementById('candidateGroup').style.display = 'none';
+            document.getElementById('muteGroup').style.display = 'none';
+            document.getElementById('speakerGroup').style.display = 'none';
+
+            // 타입별로 필요한 입력 필드 표시
+            if (signalType === 'OFFER' || signalType === 'ANSWER') {
+                document.getElementById('sdpGroup').style.display = 'block';
+            } else if (signalType === 'ICE_CANDIDATE') {
+                document.getElementById('candidateGroup').style.display = 'block';
+            } else if (signalType === 'MUTE_STATUS_CHANGED') {
+                document.getElementById('muteGroup').style.display = 'block';
+            } else if (signalType === 'SPEAKER_STATUS_CHANGED') {
+                document.getElementById('speakerGroup').style.display = 'block';
+            }
+        }
+
+        function connect() {
+            const token = document.getElementById('jwtToken').value;
+            const chatRoomId = document.getElementById('chatRoomId').value;
+
+            if (!token) {
+                alert('JWT 토큰을 입력해주세요.');
+                return;
+            }
+
+            const socket = new SockJS('http://localhost:8080/ws');
+            stompClient = new StompJs.Client({
+                webSocketFactory: () => socket,
+                connectHeaders: {
+                    Authorization: token
+                },
+                debug: function (str) {
+                    console.log(str);
+                },
+                reconnectDelay: 5000,
+                heartbeatIncoming: 4000,
+                heartbeatOutgoing: 4000
+            });
+
+            stompClient.onConnect = function (frame) {
+                addLog('연결 성공', 'info');
+                updateConnectionStatus(true);
+
+                // 채팅방 토픽 구독
+                subscription = stompClient.subscribe(`/topic/voice.${chatRoomId}`, function (message) {
+                    const signal = JSON.parse(message.body);
+                    handleReceivedSignal(signal);
+                });
+
+                addLog(`토픽 구독: /topic/voice.${chatRoomId}`, 'info');
+            };
+
+            stompClient.onStompError = function (frame) {
+                addLog('STOMP 에러: ' + frame.headers['message'], 'error');
+                updateConnectionStatus(false);
+            };
+
+            stompClient.activate();
+        }
+
+        function disconnect() {
+            if (stompClient !== null) {
+                if (subscription !== null) {
+                    subscription.unsubscribe();
+                }
+                stompClient.deactivate();
+                updateConnectionStatus(false);
+                addLog('연결 해제됨', 'info');
+            }
+        }
+
+        function sendSignal() {
+            if (stompClient === null || !stompClient.connected) {
+                alert('먼저 연결해주세요.');
+                return;
+            }
+
+            const chatRoomId = document.getElementById('chatRoomId').value;
+            const signalType = document.getElementById('signalType').value;
+            const myProfileId = parseInt(document.getElementById('myProfileId').value);
+            const partnerProfileId = parseInt(document.getElementById('partnerProfileId').value);
+
+            const message = {
+                type: signalType,
+                chatRoomId: parseInt(chatRoomId),
+                fromProfileId: myProfileId,
+                toProfileId: partnerProfileId,
+                timestamp: Date.now()
+            };
+
+            // 타입별 추가 데이터
+            if (signalType === 'OFFER' || signalType === 'ANSWER') {
+                message.sdp = document.getElementById('sdp').value || 'test-sdp-' + Date.now();
+            } else if (signalType === 'ICE_CANDIDATE') {
+                message.iceCandidate = {
+                    candidate: document.getElementById('candidate').value || 'test-candidate',
+                    sdpMid: document.getElementById('sdpMid').value || '0',
+                    sdpMLineIndex: parseInt(document.getElementById('sdpMLineIndex').value) || 0
+                };
+            } else if (signalType === 'MUTE_STATUS_CHANGED') {
+                message.isMuted = document.getElementById('isMuted').checked;
+            } else if (signalType === 'SPEAKER_STATUS_CHANGED') {
+                message.isSpeakerOn = document.getElementById('isSpeakerOn').checked;
+            }
+
+            // 메시지 전송
+            stompClient.publish({
+                destination: `/app/voice/${chatRoomId}`,
+                body: JSON.stringify(message)
+            });
+
+            addLog(`전송: ${signalType}`, 'sent', message);
+        }
+
+        function handleReceivedSignal(signal) {
+            const myProfileId = parseInt(document.getElementById('myProfileId').value);
+
+            // 자신이 보낸 메시지 필터링 (senderId 확인)
+            if (signal.senderId === myProfileId) {
+                addLog(`수신 (내가 보냄): ${signal.type}`, 'received', signal, true);
+            } else {
+                addLog(`수신: ${signal.type}`, 'received', signal);
+            }
+        }
+
+        function addLog(message, type, data = null, isMine = false) {
+            const log = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+
+            const timestamp = new Date().toLocaleTimeString('ko-KR');
+            let logText = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+
+            if (isMine) {
+                logText += ' <span style="color: #999;">(필터링 가능)</span>';
+            }
+
+            if (data) {
+                logText += `<br><pre style="margin: 5px 0; font-size: 11px;">${JSON.stringify(data, null, 2)}</pre>`;
+            }
+
+            entry.innerHTML = logText;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = `
+                <div class="log-entry info">
+                    <span class="timestamp">[초기화]</span> 로그가 초기화되었습니다.
+                </div>
+            `;
+        }
+
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.className = 'status connected';
+                status.textContent = '✅ 연결됨';
+            } else {
+                status.className = 'status disconnected';
+                status.textContent = '❌ 연결되지 않음';
+            }
+        }
+
+        // 페이지 로드 시 UI 초기화
+        updateSignalUI();
+    </script>
+</body>
+</html>
+

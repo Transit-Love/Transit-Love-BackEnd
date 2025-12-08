@@ -34,6 +34,12 @@ public class VoiceSignalMessage {
     private Long toProfileId;
 
     /**
+     * 메시지 발신자 ID (필터링용)
+     * 클라이언트에서 자신이 보낸 메시지를 제외하는데 사용
+     */
+    private Long senderId;
+
+    /**
      * WebRTC SDP (Session Description Protocol)
      * OFFER, ANSWER 타입에서 사용
      */
