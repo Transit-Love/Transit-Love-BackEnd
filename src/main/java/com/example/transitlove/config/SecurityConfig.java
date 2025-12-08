@@ -42,12 +42,12 @@ public class SecurityConfig {
                         .requestMatchers("/", "/error", "/favicon.ico").permitAll()
                         .requestMatchers("/oauth2-debug.html", "/*.html", "/static/**", "/css/**", "/js/**").permitAll() // 정적 리소스
                         .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**").permitAll()
-                        .requestMatchers("/api/profiles/**").permitAll() // 임시: 테스트용
                         .requestMatchers("/api/init/**").permitAll() // 임시: 초기 데이터 추가용
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/chatrooms/admin/**").hasRole("ADMIN") // 채팅방 어드민 API
                         .requestMatchers("/ws/**", "/api/chat/**", "/api/temp-chat/**", "/api/chatrooms/**").authenticated() // 인증 필수
-                        .requestMatchers("/api/matching/**").authenticated() // 인증 필수로 변경
+                        .requestMatchers("/api/matching/**").authenticated() // 인증 필수
+                        .requestMatchers("/api/profiles/**").authenticated() // 인증 필수
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2

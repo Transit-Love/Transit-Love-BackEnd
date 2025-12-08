@@ -25,8 +25,7 @@ public class ProfileController {
             @AuthenticationPrincipal CustomOAuth2User oAuth2User,
             @Valid @RequestBody ProfileCreateRequest request
     ) {
-        Long userId = oAuth2User.getId();
-        ProfileResponse response = profileService.createProfile(userId, request);
+        ProfileResponse response = profileService.createProfile(oAuth2User.getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -34,8 +33,7 @@ public class ProfileController {
     public ResponseEntity<ProfileResponse> getMyProfile(
             @AuthenticationPrincipal CustomOAuth2User oAuth2User
     ) {
-        Long userId = oAuth2User.getId();
-        ProfileResponse response = profileService.getProfile(userId);
+        ProfileResponse response = profileService.getProfile(oAuth2User.getId());
         return ResponseEntity.ok(response);
     }
 
@@ -44,8 +42,7 @@ public class ProfileController {
             @AuthenticationPrincipal CustomOAuth2User oAuth2User,
             @Valid @RequestBody ProfileCreateRequest request
     ) {
-        Long userId = oAuth2User.getId();
-        ProfileResponse response = profileService.updateProfile(userId, request);
+        ProfileResponse response = profileService.updateProfile(oAuth2User.getId(), request);
         return ResponseEntity.ok(response);
     }
 
@@ -57,8 +54,7 @@ public class ProfileController {
     public ResponseEntity<List<ProfileResponse>> getMatchedProfiles(
             @AuthenticationPrincipal CustomOAuth2User oAuth2User
     ) {
-        Long userId = oAuth2User.getId();
-        List<ProfileResponse> responses = profileService.getMatchedProfiles(userId);
+        List<ProfileResponse> responses = profileService.getMatchedProfiles(oAuth2User.getId());
         return ResponseEntity.ok(responses);
     }
 
@@ -70,8 +66,8 @@ public class ProfileController {
     public ResponseEntity<List<ProfileResponse>> getUnmatchedProfiles(
             @AuthenticationPrincipal CustomOAuth2User oAuth2User
     ) {
-        Long userId = oAuth2User.getId();
-        List<ProfileResponse> responses = profileService.getUnmatchedProfiles(userId);
+        List<ProfileResponse> responses = profileService.getUnmatchedProfiles(oAuth2User.getId());
         return ResponseEntity.ok(responses);
     }
 }
+

@@ -56,10 +56,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String role = jwtTokenProvider.getUserRole(token);
 
                 // CustomOAuth2User 객체 생성
+<<<<<<< HEAD
+                CustomOAuth2User customOAuth2User = CustomOAuth2User.create(userId, email, role);
+
+                // Spring Security 인증 객체 생성 (principal을 CustomOAuth2User로 설정)
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        customOAuth2User,
+                        null,
+=======
                 CustomOAuth2User customOAuth2User = CustomOAuth2User.create(
                         userId,
                         email,
                         role,
+>>>>>>> 39adb0f260320a7597f5784b7af2c6f43ab6a81b
                         Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
                 );
 
