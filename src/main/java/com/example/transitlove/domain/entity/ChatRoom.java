@@ -107,6 +107,16 @@ public class ChatRoom {
     }
 
     /**
+     * UNMATCHED 채팅방을 MATCHED로 변경
+     * 마지막 선택에서 사용
+     */
+    public void convertToMatched(Match match) {
+        this.match = match;
+        this.roomType = RoomType.MATCHED;
+        this.expiresAt = null; // MATCHED가 되면 만료 시간 제거
+    }
+
+    /**
      * 채팅방이 만료되었는지 확인
      */
     public boolean isExpired() {

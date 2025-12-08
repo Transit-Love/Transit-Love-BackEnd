@@ -1,9 +1,6 @@
 package com.example.transitlove.api.controller;
 
-import com.example.transitlove.api.dto.ChatListResponse;
-import com.example.transitlove.api.dto.ChatMessageRequest;
-import com.example.transitlove.api.dto.ChatMessageResponse;
-import com.example.transitlove.api.dto.MatchResponse;
+import com.example.transitlove.api.dto.*;
 import com.example.transitlove.domain.entity.Profile;
 import com.example.transitlove.domain.entity.User;
 import com.example.transitlove.domain.repository.ProfileRepository;
@@ -202,6 +199,48 @@ public class ChatController {
         chatService.markMessagesAsRead(profileId, matchId);
 
         return ResponseEntity.ok("메시지가 읽음 처리되었습니다.");
+    }
+
+    // ===== Final Choice API Endpoints =====
+
+    /**
+     * 마지막 선택 옵션 조회
+     * GET /api/chat/final-choice/options
+     *
+     * @param oauth2User 인증된 사용자
+     * @return 현재 매칭 상대 + 채팅했던 다른 사람들
+     */
+    @GetMapping("/api/chat/final-choice/options")
+    public ResponseEntity<FinalChoiceOptionsResponse> getFinalChoiceOptions(
+            @AuthenticationPrincipal CustomOAuth2User oauth2User) {
+
+        log.debug("REST API: 마지막 선택 옵션 조회");
+
+        Long profileId = getProfileIdFromOAuth2User(oauth2User);
+        FinalChoiceOptionsResponse options = chatService.getFinalChoiceOptions(profileId);
+
+        return ResponseEntity.ok(options);
+    }
+
+    /**
+     * 마지막 선택 실행
+     * POST /api/chat/final-choice
+     *
+     * @param request 선택한 프로필 ID
+     * @param oauth2User 인증된 사용자
+     * @return 최종 매칭 정보
+     */
+    @PostMapping("/api/chat/final-choice")
+    public ResponseEntity<FinalChoiceResponse> makeFinalChoice(
+            @RequestBody FinalChoiceRequest request,
+            @AuthenticationPrincipal CustomOAuth2User oauth2User) {
+
+        log.debug("REST API: 마지막 선택 실행 - 선택 프로필: {}", request.getSelectedProfileId());
+
+        Long profileId = getProfileIdFromOAuth2User(oauth2User);
+        FinalChoiceResponse response = chatService.makeFinalChoice(profileId, request.getSelectedProfileId());
+
+        return ResponseEntity.ok(response);
     }
 
     // ===== Private Helper Methods =====

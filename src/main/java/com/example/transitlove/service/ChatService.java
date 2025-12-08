@@ -305,6 +305,162 @@ public class ChatService {
                 .build();
     }
 
+    // ===== Final Choice Methods =====
+
+    /**
+     * 마지막 선택 옵션 조회
+     * 현재 매칭 상대 + 채팅했던 다른 사람들
+     * @param profileId 프로필 ID
+     * @return 선택 가능한 옵션 목록
+     */
+    public FinalChoiceOptionsResponse getFinalChoiceOptions(Long profileId) {
+        log.debug("마지막 선택 옵션 조회 - 프로필: {}", profileId);
+
+        // 1. 현재 활성 매칭 조회
+        List<Match> activeMatches = matchRepository.findActiveMatchesByProfileId(profileId);
+
+        FinalChoiceOptionsResponse.CurrentMatchDto currentMatch = null;
+        Long currentMatchedProfileId = null;
+
+        if (!activeMatches.isEmpty()) {
+            Match match = activeMatches.get(0); // 첫 번째 매칭만 사용
+            Profile partner = match.getOtherProfile(profileId);
+            currentMatchedProfileId = partner.getId();
+
+            Long messageCount = chatMessageRepository.countByMatchId(match.getId());
+
+            currentMatch = FinalChoiceOptionsResponse.CurrentMatchDto.builder()
+                    .matchId(match.getId())
+                    .profileId(partner.getId())
+                    .nickname(partner.getNickname())
+                    .mbti(partner.getMbti())
+                    .matchedAt(match.getMatchedAt())
+                    .totalMessageCount(messageCount)
+                    .build();
+        }
+
+        // 2. 채팅했던 다른 사람들 조회 (UNMATCHED 채팅방 기준)
+        List<ChatRoom> unmatchedRooms = chatRoomRepository.findUnmatchedRoomsByProfileId(profileId);
+
+        Long finalCurrentMatchedProfileId = currentMatchedProfileId;
+        List<FinalChoiceOptionsResponse.ChatPartnerDto> chatPartners = unmatchedRooms.stream()
+                .map(room -> {
+                    Profile partner = room.getOtherProfile(profileId);
+
+                    // 현재 매칭 상대는 제외
+                    if (finalCurrentMatchedProfileId != null && partner.getId().equals(finalCurrentMatchedProfileId)) {
+                        return null;
+                    }
+
+                    // 메시지 수 조회
+                    Long messageCount = chatMessageRepository.countByChatRoomId(room.getId());
+
+                    // 메시지가 있는 경우만 포함
+                    if (messageCount > 0) {
+                        return FinalChoiceOptionsResponse.ChatPartnerDto.from(
+                                partner,
+                                messageCount,
+                                room.getLastMessageAt()
+                        );
+                    }
+                    return null;
+                })
+                .filter(dto -> dto != null)
+                .collect(Collectors.toList());
+
+        log.info("마지막 선택 옵션 조회 완료 - 현재 매칭: {}, 채팅 파트너: {}",
+                currentMatch != null ? 1 : 0, chatPartners.size());
+
+        return FinalChoiceOptionsResponse.builder()
+                .currentMatch(currentMatch)
+                .chatPartners(chatPartners)
+                .build();
+    }
+
+    /**
+     * 마지막 선택 실행
+     * @param profileId 프로필 ID
+     * @param selectedProfileId 선택한 프로필 ID
+     * @return 최종 매칭 정보
+     */
+    @Transactional
+    public FinalChoiceResponse makeFinalChoice(Long profileId, Long selectedProfileId) {
+        log.debug("마지막 선택 실행 - 프로필: {}, 선택: {}", profileId, selectedProfileId);
+
+        // 1. 선택한 프로필 검증
+        Profile selectedProfile = findProfileById(selectedProfileId);
+
+        // 2. 현재 활성 매칭 조회
+        List<Match> activeMatches = matchRepository.findActiveMatchesByProfileId(profileId);
+
+        if (activeMatches.isEmpty()) {
+            log.error("활성 매칭이 없음 - 프로필: {}", profileId);
+            throw new IllegalStateException("현재 활성 매칭이 없습니다.");
+        }
+
+        Match currentMatch = activeMatches.get(0);
+        Profile currentPartner = currentMatch.getOtherProfile(profileId);
+        boolean isChanged = false;
+
+        // 3. 선택 처리
+        if (currentPartner.getId().equals(selectedProfileId)) {
+            // 현재 매칭 상대 선택 - 그대로 유지
+            log.info("현재 매칭 상대 유지 - 매칭 ID: {}", currentMatch.getId());
+        } else {
+            // 다른 사람 선택 - 매칭 변경
+            log.info("매칭 변경 시작 - 기존: {}, 새로운: {}", currentPartner.getId(), selectedProfileId);
+
+            // 3-1. 채팅 이력 검증 (선택한 사람과 채팅한 적이 있는지)
+            ChatRoom chatRoom = chatRoomRepository.findByProfileIds(profileId, selectedProfileId)
+                    .orElseThrow(() -> {
+                        log.error("채팅 이력이 없음 - 프로필: {}, 선택: {}", profileId, selectedProfileId);
+                        return new IllegalArgumentException("선택한 프로필과 채팅 이력이 없습니다.");
+                    });
+
+            // 메시지가 있는지 확인
+            Long messageCount = chatMessageRepository.countByChatRoomId(chatRoom.getId());
+            if (messageCount == 0) {
+                log.error("메시지가 없음 - 채팅방: {}", chatRoom.getId());
+                throw new IllegalArgumentException("선택한 프로필과 메시지를 주고받은 적이 없습니다.");
+            }
+
+            // 3-2. 기존 매칭 해제
+            currentMatch.unmatch();
+            log.info("기존 매칭 해제 완료 - ID: {}", currentMatch.getId());
+
+            // 3-3. 선택한 프로필의 기존 매칭도 해제 (있다면)
+            List<Match> selectedProfileMatches = matchRepository.findActiveMatchesByProfileId(selectedProfileId);
+            for (Match match : selectedProfileMatches) {
+                match.unmatch();
+                log.info("선택된 프로필의 기존 매칭 해제 - ID: {}", match.getId());
+            }
+
+            // 3-4. 새로운 매칭 생성
+            Profile myProfile = findProfileById(profileId);
+            Match newMatch = Match.builder()
+                    .profile1(myProfile)
+                    .profile2(selectedProfile)
+                    .matchType(Match.MatchType.MANUAL)
+                    .similarityScore(0.0)
+                    .isActive(true)
+                    .build();
+
+            Match savedMatch = matchRepository.save(newMatch);
+            log.info("새로운 매칭 생성 완료 - ID: {}", savedMatch.getId());
+
+            // 3-5. ChatRoom을 MATCHED로 변경
+            chatRoom.convertToMatched(savedMatch);
+            log.info("채팅방 타입 변경 (UNMATCHED -> MATCHED) - 채팅방 ID: {}", chatRoom.getId());
+
+            currentMatch = savedMatch;
+            isChanged = true;
+        }
+
+        log.info("마지막 선택 완료 - 프로필: {}, 변경 여부: {}", profileId, isChanged);
+
+        return FinalChoiceResponse.from(currentMatch, profileId, isChanged);
+    }
+
     // ===== Admin Methods =====
 
     /**
