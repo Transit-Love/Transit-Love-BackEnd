@@ -236,8 +236,12 @@
                         if (parts.length === 3) {
                             const payload = JSON.parse(atob(parts[1]));
                             html += `<pre>디코딩된 내용:\n${JSON.stringify(payload, null, 2)}</pre>`;
+                            log(`  - userId: ${payload.userId || payload.sub || 'N/A'}`);
                             log(`  - 이메일: ${payload.email || 'N/A'}`);
                             log(`  - Role: ${payload.role || 'N/A'}`);
+                            if (payload.iat_timestamp) {
+                                log(`  - 생성 시간: ${new Date(payload.iat_timestamp).toLocaleString()}`);
+                            }
                         }
                     } catch (e) {
                         // JWT가 아닌 경우 무시
@@ -249,21 +253,48 @@
         }
 
         function clearAllTokens() {
-            log('모든 토큰 삭제 중...');
+            log('🧹 모든 토큰 및 저장소 완전 삭제 중...');
 
-            const keys = ['token', 'accessToken', 'refreshToken', 'jwt', 'authToken'];
-            keys.forEach(key => {
+            // 1. localStorage의 모든 키 확인 및 삭제
+            const localStorageKeys = Object.keys(localStorage);
+            log(`  - localStorage 키 ${localStorageKeys.length}개 발견`);
+            localStorageKeys.forEach(key => {
+                log(`    삭제: ${key}`);
+                localStorage.removeItem(key);
+            });
+
+            // 2. sessionStorage의 모든 키 확인 및 삭제
+            const sessionStorageKeys = Object.keys(sessionStorage);
+            log(`  - sessionStorage 키 ${sessionStorageKeys.length}개 발견`);
+            sessionStorageKeys.forEach(key => {
+                log(`    삭제: ${key}`);
+                sessionStorage.removeItem(key);
+            });
+
+            // 3. 일반적인 토큰 키들 명시적 삭제
+            const tokenKeys = ['token', 'accessToken', 'refreshToken', 'jwt', 'authToken',
+                              'access_token', 'id_token', 'Authorization', 'Bearer'];
+            tokenKeys.forEach(key => {
                 localStorage.removeItem(key);
                 sessionStorage.removeItem(key);
             });
 
+            // 4. 전체 clear() 호출
             localStorage.clear();
             sessionStorage.clear();
 
-            document.getElementById('tokenInfo').innerHTML =
-                '<div class="success">✅ 모든 토큰이 삭제되었습니다.</div>';
+            // 5. 쿠키 삭제 (있을 경우)
+            document.cookie.split(";").forEach(function(c) {
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+            });
 
-            log('✅ 모든 토큰 삭제 완료');
+            document.getElementById('tokenInfo').innerHTML =
+                '<div class="success">✅ 모든 토큰과 저장소가 완전히 삭제되었습니다!</div>';
+
+            log('✅ 토큰 삭제 완료:');
+            log(`  - localStorage: ${localStorage.length}개 항목`);
+            log(`  - sessionStorage: ${sessionStorage.length}개 항목`);
+            log('  - 모든 쿠키 삭제됨');
 
             setTimeout(checkTokens, 500);
         }

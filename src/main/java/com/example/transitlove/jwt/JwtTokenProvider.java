@@ -55,6 +55,30 @@ public class JwtTokenProvider {
                 .subject(email)
                 .claim("email", email)
                 .claim("role", role)
+                .claim("iat_timestamp", now.getTime()) // 생성 시간을 밀리초로 추가하여 고유성 보장
+                .issuedAt(now)
+                .expiration(validity)
+                .signWith(key)
+                .compact();
+
+        log.debug("생성된 토큰 (앞 50자): {}", token.substring(0, Math.min(50, token.length())));
+
+        return token;
+    }
+
+    // userId를 포함한 토큰 생성 메서드 추가
+    public String createToken(Long userId, String email, String role) {
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + validityInMilliseconds);
+
+        log.info("JWT 토큰 생성 - userId: {}, email: {}, role: {}, 만료: {}", userId, email, role, validity);
+
+        String token = Jwts.builder()
+                .subject(String.valueOf(userId))
+                .claim("userId", userId)
+                .claim("email", email)
+                .claim("role", role)
+                .claim("iat_timestamp", now.getTime()) // 생성 시간을 밀리초로 추가하여 고유성 보장
                 .issuedAt(now)
                 .expiration(validity)
                 .signWith(key)

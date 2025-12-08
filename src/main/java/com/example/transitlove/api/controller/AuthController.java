@@ -36,8 +36,8 @@ public class AuthController {
         User user = userRepository.findBySchoolEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + request.getEmail()));
 
-        // JWT 토큰 생성
-        String token = jwtTokenProvider.createToken(user.getSchoolEmail(), user.getRole().name());
+        // JWT 토큰 생성 (userId 포함)
+        String token = jwtTokenProvider.createToken(user.getId(), user.getSchoolEmail(), user.getRole().name());
 
         Map<String, String> response = new HashMap<>();
         response.put("accessToken", token);
@@ -45,7 +45,7 @@ public class AuthController {
         response.put("name", user.getName());
         response.put("role", user.getRole().name());
 
-        log.info("토큰 발급 완료: {} ({})", user.getName(), user.getRole());
+        log.info("토큰 발급 완료: userId={}, name={}, role={}", user.getId(), user.getName(), user.getRole());
 
         return ResponseEntity.ok(response);
     }

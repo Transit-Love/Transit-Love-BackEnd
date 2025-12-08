@@ -51,9 +51,9 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         log.info("사용자 정보 - ID: {}, Email: {}, Role: {}",
                 oAuth2User.getId(), oAuth2User.getEmail(), oAuth2User.getRole());
 
-        // JWT 토큰 생성
-        String token = jwtTokenProvider.createToken(oAuth2User.getEmail(), oAuth2User.getRole());
-        log.info("JWT 토큰 생성 완료 (길이: {})", token.length());
+        // JWT 토큰 생성 (userId 포함)
+        String token = jwtTokenProvider.createToken(oAuth2User.getId(), oAuth2User.getEmail(), oAuth2User.getRole());
+        log.info("JWT 토큰 생성 완료 - userId: {}, 길이: {}", oAuth2User.getId(), token.length());
         log.debug("생성된 토큰: {}", token.substring(0, Math.min(50, token.length())) + "...");
 
         String targetUrl = UriComponentsBuilder.fromUriString(redirectUri)
