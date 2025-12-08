@@ -25,7 +25,7 @@ jobs:
       - name: Build Spring Boot (Gradle)
         run: ./gradlew clean build -x test
 
-      - name: Upload artifact (for record)   # v4로 업그레이드
+      - name: Upload artifact   # v4 사용
         uses: actions/upload-artifact@v4
         with:
           name: spring-app
@@ -37,14 +37,14 @@ jobs:
           EC2_USER: ${{ secrets.EC2_USER }}
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          echo "$SSH_KEY" > deploy_key
-          chmod 600 deploy_key
+          printf '%s\n' "$SSH_KEY" > ./deploy_key
+          chmod 600 ./deploy_key
 
           JAR_FILE=$(ls build/libs/*.jar | head -n 1)
           echo "Will copy: $JAR_FILE"
 
-          scp -i deploy_key -o StrictHostKeyChecking=no "$JAR_FILE" "$EC2_USER@$EC2_HOST:~/app.jar"
+          scp -i ./deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=no "$JAR_FILE" "$EC2_USER@$EC2_HOST:~/app.jar"
 
-          ssh -i deploy_key -o StrictHostKeyChecking=no "$EC2_USER@$EC2_HOST" "
+          ssh -i ./deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=no "$EC2_USER@$EC2_HOST" "
             nohup java -jar ~/app.jar > ~/app.log 2>&1 &
           "
