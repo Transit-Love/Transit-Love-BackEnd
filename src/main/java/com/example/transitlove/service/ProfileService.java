@@ -5,6 +5,7 @@ import com.example.transitlove.api.dto.ProfileResponse;
 import com.example.transitlove.domain.entity.*;
 import com.example.transitlove.domain.repository.BalanceGameRepository;
 import com.example.transitlove.domain.repository.KeywordRepository;
+import com.example.transitlove.domain.repository.MatchRepository;
 import com.example.transitlove.domain.repository.ProfileRepository;
 import com.example.transitlove.domain.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class ProfileService {
     private final UserRepository userRepository;
     private final KeywordRepository keywordRepository;
     private final BalanceGameRepository balanceGameRepository;
+    private final MatchRepository matchRepository;
 
     @Transactional
     public ProfileResponse createProfile(Long userId, ProfileCreateRequest request) {
@@ -141,5 +143,63 @@ public class ProfileService {
         }
 
         return ProfileResponse.from(profile);
+    }
+
+    /**
+     * 매칭된 프로필 목록 조회 (내가 매칭된 상대방들)
+     */
+    public List<ProfileResponse> getMatchedProfiles(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        Profile myProfile = profileRepository.findByUser(user)
+                .orElseThrow(() -> new IllegalArgumentException("프로필을 찾을 수 없습니다."));
+
+        // 나의 활성화된 매칭 목록 조회
+        List<Match> activeMatches = matchRepository.findActiveMatchesByProfileId(myProfile.getId());
+
+        // 매칭된 상대방 프로필들 추출
+        List<Profile> matchedProfiles = activeMatches.stream()
+                .map(match -> {
+                    // 내가 profile1이면 profile2를, profile2면 profile1을 반환
+                    if (match.getProfile1().getId().equals(myProfile.getId())) {
+                        return match.getProfile2();
+                    } else {
+                        return match.getProfile1();
+                    }
+                })
+                .collect(Collectors.toList());
+
+        return matchedProfiles.stream()
+                .map(ProfileResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 매칭되지 않은 프로필 목록 조회 (매칭 가능한 후보들)
+     */
+    public List<ProfileResponse> getUnmatchedProfiles(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        Profile myProfile = profileRepository.findByUser(user)
+                .orElseThrow(() -> new IllegalArgumentException("프로필을 찾을 수 없습니다."));
+
+        // 전체 활성화된 매칭에서 이미 매칭된 프로필 ID 수집
+        List<Long> matchedProfileIds = matchRepository.findAll().stream()
+                .filter(Match::getIsActive)
+                .flatMap(match -> List.of(match.getProfile1().getId(), match.getProfile2().getId()).stream())
+                .distinct()
+                .collect(Collectors.toList());
+
+        // 전체 프로필 중에서 자기 자신과 이미 매칭된 프로필들을 제외
+        List<Profile> unmatchedProfiles = profileRepository.findAll().stream()
+                .filter(profile -> !profile.getId().equals(myProfile.getId())) // 자기 자신 제외
+                .filter(profile -> !matchedProfileIds.contains(profile.getId())) // 매칭된 사람들 제외
+                .collect(Collectors.toList());
+
+        return unmatchedProfiles.stream()
+                .map(ProfileResponse::from)
+                .collect(Collectors.toList());
     }
 }

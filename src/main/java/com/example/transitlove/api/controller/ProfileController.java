@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/profiles")
 @RequiredArgsConstructor
@@ -23,8 +25,7 @@ public class ProfileController {
             @AuthenticationPrincipal CustomOAuth2User oAuth2User,
             @Valid @RequestBody ProfileCreateRequest request
     ) {
-        // 임시: 테스트용 - oAuth2User가 null이면 userId 1 사용
-        Long userId = (oAuth2User != null) ? oAuth2User.getId() : 1L;
+        Long userId = oAuth2User.getId();
         ProfileResponse response = profileService.createProfile(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -33,8 +34,7 @@ public class ProfileController {
     public ResponseEntity<ProfileResponse> getMyProfile(
             @AuthenticationPrincipal CustomOAuth2User oAuth2User
     ) {
-        // 임시: 테스트용 - oAuth2User가 null이면 userId 1 사용
-        Long userId = (oAuth2User != null) ? oAuth2User.getId() : 1L;
+        Long userId = oAuth2User.getId();
         ProfileResponse response = profileService.getProfile(userId);
         return ResponseEntity.ok(response);
     }
@@ -44,9 +44,34 @@ public class ProfileController {
             @AuthenticationPrincipal CustomOAuth2User oAuth2User,
             @Valid @RequestBody ProfileCreateRequest request
     ) {
-        // 임시: 테스트용 - oAuth2User가 null이면 userId 1 사용
-        Long userId = (oAuth2User != null) ? oAuth2User.getId() : 1L;
+        Long userId = oAuth2User.getId();
         ProfileResponse response = profileService.updateProfile(userId, request);
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 매칭된 프로필 목록 조회 (나와 매칭된 상대방들)
+     * GET /api/profiles/matched
+     */
+    @GetMapping("/matched")
+    public ResponseEntity<List<ProfileResponse>> getMatchedProfiles(
+            @AuthenticationPrincipal CustomOAuth2User oAuth2User
+    ) {
+        Long userId = oAuth2User.getId();
+        List<ProfileResponse> responses = profileService.getMatchedProfiles(userId);
+        return ResponseEntity.ok(responses);
+    }
+
+    /**
+     * 매칭되지 않은 프로필 목록 조회 (매칭 가능한 후보들)
+     * GET /api/profiles/unmatched
+     */
+    @GetMapping("/unmatched")
+    public ResponseEntity<List<ProfileResponse>> getUnmatchedProfiles(
+            @AuthenticationPrincipal CustomOAuth2User oAuth2User
+    ) {
+        Long userId = oAuth2User.getId();
+        List<ProfileResponse> responses = profileService.getUnmatchedProfiles(userId);
+        return ResponseEntity.ok(responses);
     }
 }
