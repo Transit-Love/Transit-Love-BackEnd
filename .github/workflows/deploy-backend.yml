@@ -35,17 +35,23 @@ jobs:
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
-          SSH_KEY_B64: ${{ secrets.EC2_SSH_KEY_B64 }}
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: |
-          # base64로 전송된 시크릿을 디코드해서 키 파일 생성
-          echo "$SSH_KEY_B64" | base64 --decode > ./deploy_key
+          # 안전하게 키 파일 생성
+          echo "$SSH_KEY" > ./deploy_key
           chmod 600 ./deploy_key
 
-          JAR_FILE=$(ls build/libs/*.jar | head -n 1)
+          # 빌드 생성
+          ./gradlew clean build -x test
+
+          JAR_FILE=$(ls build/libs/*SNAPSHOT.jar | head -n 1)
           echo "Will copy: $JAR_FILE"
 
+          # scp로 업로드
           scp -i ./deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=no "$JAR_FILE" "$EC2_USER@$EC2_HOST:~/app.jar"
 
+          # EC2에서 실행
           ssh -i ./deploy_key -o IdentitiesOnly=yes -o StrictHostKeyChecking=no "$EC2_USER@$EC2_HOST" "
-            nohup java -jar ~/app.jar > ~/app.log 2>&1 &
+            pkill -f app.jar || true
+            nohup java -jar ~/app.jar --server.address=0.0.0.0 > ~/app.log 2>&1 &
           "
