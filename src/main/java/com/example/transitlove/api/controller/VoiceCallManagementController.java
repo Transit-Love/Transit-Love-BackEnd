@@ -36,11 +36,40 @@ public class VoiceCallManagementController {
     private final ProfileRepository profileRepository;
 
     /**
-     * 음소거 상태 변경
+     * 음소거 상태 업데이트 (명세서 버전)
+     * POST /api/voice/mute
+     */
+    @PostMapping("/mute")
+    public ResponseEntity<Map<String, Object>> updateMuteStatus(
+            @Valid @RequestBody VoiceMuteRequest request,
+            @AuthenticationPrincipal CustomOAuth2User oauth2User) {
+
+        log.info("음소거 상태 업데이트 요청: {}", request);
+
+        try {
+            voiceCallManagementService.updateMuteStatus(request.getChatRoomId(), request);
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("success", true);
+            result.put("message", "Mute status updated");
+
+            return ResponseEntity.ok(result);
+
+        } catch (Exception e) {
+            log.error("음소거 상태 업데이트 중 오류 발생", e);
+            Map<String, Object> error = new HashMap<>();
+            error.put("success", false);
+            error.put("message", "서버 오류가 발생했습니다.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    /**
+     * 음소거 상태 변경 (기존 버전 - 호환성 유지)
      * POST /api/voice/room/{chatRoomId}/mute
      */
     @PostMapping("/room/{chatRoomId}/mute")
-    public ResponseEntity<Map<String, Object>> updateMuteStatus(
+    public ResponseEntity<Map<String, Object>> updateMuteStatusV2(
             @PathVariable Long chatRoomId,
             @Valid @RequestBody VoiceMuteRequest request,
             @AuthenticationPrincipal CustomOAuth2User oauth2User) {
