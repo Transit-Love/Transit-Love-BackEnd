@@ -1,9 +1,6 @@
 package com.example.transitlove.service;
 
-import com.example.transitlove.api.dto.ChatListResponse;
-import com.example.transitlove.api.dto.ChatMessageRequest;
-import com.example.transitlove.api.dto.ChatMessageResponse;
-import com.example.transitlove.api.dto.MatchResponse;
+import com.example.transitlove.api.dto.*;
 import com.example.transitlove.domain.entity.ChatMessage;
 import com.example.transitlove.domain.entity.Match;
 import com.example.transitlove.domain.entity.Profile;
@@ -268,6 +265,91 @@ public class ChatService {
                 .content(request.getContent())
                 .type(request.getType() != null ? request.getType() : ChatMessage.MessageType.TEXT)
                 .isRead(false)
+                .build();
+    }
+
+    // ===== Admin Methods =====
+
+    /**
+     * 어드민 전용 - 모든 커플 매칭 목록 조회
+     * @param includeInactive 비활성 매칭 포함 여부
+     * @return 모든 매칭 목록
+     */
+    public AdminMatchListResponse getAllMatches(boolean includeInactive) {
+        log.debug("어드민 - 모든 매칭 조회 (비활성 포함: {})", includeInactive);
+
+        List<Match> matches;
+        if (includeInactive) {
+            matches = matchRepository.findAll();
+        } else {
+            matches = matchRepository.findByIsActiveTrue();
+        }
+
+        List<AdminMatchListResponse.MatchInfoDto> matchInfos = matches.stream()
+                .map(match -> {
+                    // 총 메시지 수 조회
+                    Long messageCount = chatMessageRepository.countByMatchId(match.getId());
+
+                    // 최근 메시지 조회
+                    ChatMessage lastMessage = chatMessageRepository.findLatestMessageByMatchId(match.getId());
+
+                    return AdminMatchListResponse.MatchInfoDto.from(match, messageCount, lastMessage);
+                })
+                .collect(Collectors.toList());
+
+        log.info("어드민 - 매칭 조회 완료: {} 건", matchInfos.size());
+
+        return AdminMatchListResponse.builder()
+                .matches(matchInfos)
+                .totalCount(matchInfos.size())
+                .build();
+    }
+
+    /**
+     * 어드민 전용 - 특정 커플의 모든 채팅 메시지 조회
+     * @param matchId 매칭 ID
+     * @return 채팅 메시지 목록
+     */
+    public AdminChatMessagesResponse getMatchMessages(Long matchId) {
+        log.debug("어드민 - 매칭 메시지 조회: {}", matchId);
+
+        // 매칭 조회
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> {
+                    log.error("매칭을 찾을 수 없음 - ID: {}", matchId);
+                    return new IllegalArgumentException("매칭을 찾을 수 없습니다. ID: " + matchId);
+                });
+
+        // 메시지 목록 조회
+        List<ChatMessage> messages = chatMessageRepository.findByMatchIdOrderBySentAtAsc(matchId);
+
+        // DTO 변환
+        List<AdminChatMessagesResponse.MessageDto> messageDtos = messages.stream()
+                .map(AdminChatMessagesResponse.MessageDto::from)
+                .collect(Collectors.toList());
+
+        AdminChatMessagesResponse.MatchProfilesDto matchProfiles = AdminChatMessagesResponse.MatchProfilesDto.builder()
+                .profile1(AdminChatMessagesResponse.ProfileDto.builder()
+                        .profileId(match.getProfile1().getId())
+                        .nickname(match.getProfile1().getNickname())
+                        .mbti(match.getProfile1().getMbti())
+                        .build())
+                .profile2(AdminChatMessagesResponse.ProfileDto.builder()
+                        .profileId(match.getProfile2().getId())
+                        .nickname(match.getProfile2().getNickname())
+                        .mbti(match.getProfile2().getMbti())
+                        .build())
+                .matchedAt(match.getMatchedAt())
+                .isActive(match.getIsActive())
+                .build();
+
+        log.info("어드민 - 매칭 메시지 조회 완료: {} 건", messageDtos.size());
+
+        return AdminChatMessagesResponse.builder()
+                .matchId(matchId)
+                .matchProfiles(matchProfiles)
+                .messages(messageDtos)
+                .totalMessageCount(messageDtos.size())
                 .build();
     }
 }

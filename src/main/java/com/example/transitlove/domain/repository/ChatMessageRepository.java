@@ -26,5 +26,23 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
 
     @Query("SELECT cm FROM ChatMessage cm WHERE cm.match.id = :matchId ORDER BY cm.sentAt DESC LIMIT 1")
     ChatMessage findLatestMessageByMatchId(@Param("matchId") Long matchId);
+
+    // Admin methods
+    @Query("SELECT COUNT(cm) FROM ChatMessage cm WHERE cm.match.id = :matchId")
+    Long countByMatchId(@Param("matchId") Long matchId);
+
+    // ChatRoom based queries
+    @Query("SELECT cm FROM ChatMessage cm WHERE cm.chatRoom.id = :chatRoomId ORDER BY cm.sentAt ASC")
+    List<ChatMessage> findByChatRoomIdOrderBySentAtAsc(@Param("chatRoomId") Long chatRoomId);
+
+    @Query("SELECT cm FROM ChatMessage cm WHERE cm.chatRoom.id = :chatRoomId ORDER BY cm.sentAt DESC LIMIT 1")
+    ChatMessage findLatestMessageByChatRoomId(@Param("chatRoomId") Long chatRoomId);
+
+    @Query("SELECT COUNT(cm) FROM ChatMessage cm WHERE cm.chatRoom.id = :chatRoomId AND cm.isRead = false AND cm.senderProfile.id != :profileId")
+    Long countUnreadMessagesByChatRoomIdAndNotSender(@Param("chatRoomId") Long chatRoomId, @Param("profileId") Long profileId);
+
+    @Modifying
+    @Query("UPDATE ChatMessage cm SET cm.isRead = true, cm.readAt = CURRENT_TIMESTAMP WHERE cm.chatRoom.id = :chatRoomId AND cm.senderProfile.id != :profileId AND cm.isRead = false")
+    void markAllAsReadByChatRoomIdAndNotSender(@Param("chatRoomId") Long chatRoomId, @Param("profileId") Long profileId);
 }
 

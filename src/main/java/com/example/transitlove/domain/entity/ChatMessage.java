@@ -21,12 +21,16 @@ public class ChatMessage {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "match_id", nullable = false)
-    private Match match;
+    @JoinColumn(name = "chat_room_id", nullable = false)
+    private ChatRoom chatRoom;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "match_id")
+    private Match match; // 매칭된 채팅방인 경우에만 설정
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sender_profile_id", nullable = false)
-    private Profile senderProfile;
+    private Profile senderProfile; // 메시지 발신자
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
