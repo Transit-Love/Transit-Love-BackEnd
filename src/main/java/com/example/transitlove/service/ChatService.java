@@ -2,9 +2,11 @@ package com.example.transitlove.service;
 
 import com.example.transitlove.api.dto.*;
 import com.example.transitlove.domain.entity.ChatMessage;
+import com.example.transitlove.domain.entity.ChatRoom;
 import com.example.transitlove.domain.entity.Match;
 import com.example.transitlove.domain.entity.Profile;
 import com.example.transitlove.domain.repository.ChatMessageRepository;
+import com.example.transitlove.domain.repository.ChatRoomRepository;
 import com.example.transitlove.domain.repository.MatchRepository;
 import com.example.transitlove.domain.repository.ProfileRepository;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ import java.util.stream.Collectors;
 public class ChatService {
 
     private final ChatMessageRepository chatMessageRepository;
+    private final ChatRoomRepository chatRoomRepository;
     private final MatchRepository matchRepository;
     private final ProfileRepository profileRepository;
 
@@ -45,11 +48,18 @@ public class ChatService {
         // 2. 매칭 권한 검증
         Match match = findActiveMatchWithPermission(request.getMatchId(), senderProfileId);
 
-        // 3. 메시지 엔티티 생성
-        ChatMessage chatMessage = createChatMessage(match, senderProfile, request);
+        // 3. 매칭에 대응하는 ChatRoom 찾기 또는 생성
+        ChatRoom chatRoom = findOrCreateChatRoomForMatch(match);
 
-        // 4. 메시지 저장
+        // 4. 메시지 엔티티 생성
+        ChatMessage chatMessage = createChatMessage(chatRoom, match, senderProfile, request);
+
+        // 5. 메시지 저장
         ChatMessage savedMessage = chatMessageRepository.save(chatMessage);
+
+        // 6. 채팅방의 마지막 메시지 시간 업데이트
+        chatRoom.updateLastMessageTime();
+
         log.info("메시지 저장 완료 - ID: {}", savedMessage.getId());
 
         return ChatMessageResponse.from(savedMessage);
@@ -256,10 +266,37 @@ public class ChatService {
     }
 
     /**
+     * Match에 대응하는 ChatRoom을 찾거나 생성
+     */
+    private ChatRoom findOrCreateChatRoomForMatch(Match match) {
+        Long profile1Id = match.getProfile1().getId();
+        Long profile2Id = match.getProfile2().getId();
+
+        // 두 프로필 간의 채팅방 찾기
+        return chatRoomRepository.findByProfileIds(profile1Id, profile2Id)
+                .orElseGet(() -> {
+                    // 채팅방이 없으면 새로 생성
+                    log.info("Match에 대한 ChatRoom 생성 - Match ID: {}, Profile1: {}, Profile2: {}",
+                            match.getId(), profile1Id, profile2Id);
+
+                    ChatRoom newRoom = ChatRoom.builder()
+                            .profile1(match.getProfile1())
+                            .profile2(match.getProfile2())
+                            .match(match)
+                            .roomType(ChatRoom.RoomType.MATCHED)
+                            .isActive(true)
+                            .build();
+
+                    return chatRoomRepository.save(newRoom);
+                });
+    }
+
+    /**
      * 채팅 메시지 엔티티 생성
      */
-    private ChatMessage createChatMessage(Match match, Profile senderProfile, ChatMessageRequest request) {
+    private ChatMessage createChatMessage(ChatRoom chatRoom, Match match, Profile senderProfile, ChatMessageRequest request) {
         return ChatMessage.builder()
+                .chatRoom(chatRoom)
                 .match(match)
                 .senderProfile(senderProfile)
                 .content(request.getContent())
