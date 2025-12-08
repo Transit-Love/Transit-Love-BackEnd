@@ -1,5 +1,9 @@
 package com.example.transitlove.api.controller;
 
+import com.example.transitlove.domain.entity.Profile;
+import com.example.transitlove.domain.entity.User;
+import com.example.transitlove.domain.repository.ProfileRepository;
+import com.example.transitlove.domain.repository.UserRepository;
 import com.example.transitlove.domain.vo.VoiceSignalMessage;
 import com.example.transitlove.domain.vo.VoiceSignalType;
 import lombok.RequiredArgsConstructor;
@@ -8,7 +12,6 @@ import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
@@ -24,6 +27,9 @@ import java.security.Principal;
 @Controller
 @RequiredArgsConstructor
 public class VoiceSignalingController {
+
+    private final UserRepository userRepository;
+    private final ProfileRepository profileRepository;
 
     /**
      * 음성 채팅 시그널 처리
@@ -54,9 +60,8 @@ public class VoiceSignalingController {
                 return createErrorMessage(chatRoomId, "인증이 필요합니다.");
             }
 
-            // 인증된 사용자 정보
-            Authentication authentication = (Authentication) principal;
-            Long authenticatedProfileId = Long.parseLong(authentication.getName());
+            // 인증된 사용자 정보 (이메일에서 Profile ID 조회)
+            Long authenticatedProfileId = getProfileIdFromPrincipal(principal);
 
             // 메시지 검증
             if (message.getChatRoomId() == null || !message.getChatRoomId().equals(chatRoomId)) {
@@ -79,9 +84,9 @@ public class VoiceSignalingController {
             // 메시지 브로드캐스트 (같은 채팅방의 모든 구독자에게 전송)
             return message;
 
-        } catch (NumberFormatException e) {
-            log.error("잘못된 프로필 ID 형식", e);
-            return createErrorMessage(chatRoomId, "잘못된 사용자 정보입니다.");
+        } catch (IllegalArgumentException e) {
+            log.error("사용자 정보 조회 실패: {}", e.getMessage());
+            return createErrorMessage(chatRoomId, "사용자 정보를 찾을 수 없습니다.");
         } catch (Exception e) {
             log.error("음성 시그널 처리 중 오류 발생", e);
             return createErrorMessage(chatRoomId, "시그널 처리 중 오류가 발생했습니다.");
@@ -146,6 +151,27 @@ public class VoiceSignalingController {
                 .errorMessage(errorMessage)
                 .timestamp(System.currentTimeMillis())
                 .build();
+    }
+
+    /**
+     * Principal에서 Profile ID 추출 (WebSocket용)
+     * Principal.getName()은 이메일을 반환
+     */
+    private Long getProfileIdFromPrincipal(Principal principal) {
+        String email = principal.getName();
+        log.debug("WebSocket 프로필 조회 시도 - 이메일: {}", email);
+
+        User user = userRepository.findBySchoolEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + email));
+
+        log.debug("사용자 조회 완료 - User ID: {}", user.getId());
+
+        Profile profile = profileRepository.findByUserId(user.getId())
+                .orElseThrow(() -> new IllegalArgumentException("프로필을 찾을 수 없습니다. 프로필 생성이 필요합니다. (User ID: " + user.getId() + ")"));
+
+        log.debug("프로필 조회 완료 - Profile ID: {}", profile.getId());
+
+        return profile.getId();
     }
 }
 
