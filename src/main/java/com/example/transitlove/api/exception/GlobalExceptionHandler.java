@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -16,6 +17,27 @@ import java.util.Map;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    /**
+     * 정적 리소스 404 예외 처리 (sw.js 등) - 로그만 남기고 조용히 처리
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResourceFoundException(NoResourceFoundException ex) {
+        // Service Worker 파일 등은 DEBUG 레벨로만 로깅
+        if (ex.getMessage().contains("sw.js") || ex.getMessage().contains("manifest.json")) {
+            log.debug("프론트엔드 리소스 요청 무시: {}", ex.getResourcePath());
+        } else {
+            log.warn("리소스를 찾을 수 없음: {}", ex.getResourcePath());
+        }
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.NOT_FOUND.value());
+        body.put("error", "Not Found");
+        body.put("message", "요청한 리소스를 찾을 수 없습니다.");
+
+        return new ResponseEntity<>(body, HttpStatus.NOT_FOUND);
+    }
 
     /**
      * 채팅방 만료 예외 처리 - 410 Gone
@@ -54,6 +76,11 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleException(Exception ex) {
+        // 정적 리소스 관련 에러는 이미 처리됨
+        if (ex instanceof NoResourceFoundException) {
+            return handleNoResourceFoundException((NoResourceFoundException) ex);
+        }
+
         log.error("서버 오류", ex);
 
         Map<String, Object> body = new LinkedHashMap<>();

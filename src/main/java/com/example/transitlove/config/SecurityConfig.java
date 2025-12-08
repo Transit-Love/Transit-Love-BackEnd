@@ -34,11 +34,13 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        // OAuth2 로그인을 위해 세션 생성 허용 (authorization_request_not_found 에러 방지)
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/error", "/favicon.ico").permitAll()
+                        .requestMatchers("/oauth2-debug.html", "/*.html", "/static/**", "/css/**", "/js/**").permitAll() // 정적 리소스
                         .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**").permitAll()
                         .requestMatchers("/api/profiles/**").permitAll() // 임시: 테스트용
                         .requestMatchers("/api/init/**").permitAll() // 임시: 초기 데이터 추가용
@@ -51,6 +53,10 @@ public class SecurityConfig {
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(authorization -> authorization
                                 .baseUri("/oauth2/authorize")
+                        )
+                        .redirectionEndpoint(redirection -> redirection
+                                // Google이 콜백하는 백엔드 엔드포인트 명시
+                                .baseUri("/login/oauth2/code/*")
                         )
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService)

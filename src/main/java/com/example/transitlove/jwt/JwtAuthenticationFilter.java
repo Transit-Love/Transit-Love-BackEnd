@@ -26,8 +26,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider jwtTokenProvider;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String path = request.getRequestURI();
+
+        // OAuth2 인증 경로는 JWT 필터 적용하지 않음
+        boolean shouldNotFilter = path.startsWith("/oauth2/") ||
+                                  path.startsWith("/login/oauth2/") ||
+                                  path.startsWith("/login/oauth2/code/");
+
+        if (shouldNotFilter) {
+            log.debug("OAuth2 경로 감지, JWT 필터 제외: {}", path);
+        }
+
+        return shouldNotFilter;
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+
 
         String token = resolveToken(request);
 
