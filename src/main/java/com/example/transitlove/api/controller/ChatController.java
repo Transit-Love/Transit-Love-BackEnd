@@ -16,9 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -232,21 +230,12 @@ public class ChatController {
      * OAuth2User에서 프로필 ID 추출 (REST API용)
      */
     private Long getProfileIdFromOAuth2User(CustomOAuth2User oauth2User) {
-        String email;
-
-        // OAuth2 인증인 경우
-        if (oauth2User != null) {
-            email = oauth2User.getEmail();
-        } else {
-            // JWT 인증인 경우 SecurityContext에서 이메일 추출
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication != null && authentication.getPrincipal() instanceof String) {
-                email = (String) authentication.getPrincipal();
-            } else {
-                throw new IllegalArgumentException("인증 정보를 찾을 수 없습니다.");
-            }
+        // JWT 필터에서 CustomOAuth2User를 생성하므로 null이 아님
+        if (oauth2User == null) {
+            throw new IllegalArgumentException("인증 정보를 찾을 수 없습니다.");
         }
 
+        String email = oauth2User.getEmail();
         log.debug("프로필 조회 시도 - 이메일: {}", email);
 
         User user = userRepository.findBySchoolEmail(email)

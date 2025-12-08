@@ -28,6 +28,10 @@ public class CustomOAuth2User implements OAuth2User {
         return new CustomOAuth2User(id, email, role, Collections.emptyList());
     }
 
+    public static CustomOAuth2User create(Long id, String email, String role, Collection<? extends GrantedAuthority> authorities) {
+        return new CustomOAuth2User(id, email, role, authorities);
+    }
+
     public static CustomOAuth2User create(Long id, String email, String role, Map<String, Object> attributes) {
         CustomOAuth2User customOAuth2User = CustomOAuth2User.create(id, email, role);
         customOAuth2User.setAttributes(attributes);

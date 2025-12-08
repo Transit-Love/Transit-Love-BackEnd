@@ -25,8 +25,7 @@ public class ProfileController {
             @AuthenticationPrincipal CustomOAuth2User oAuth2User,
             @Valid @RequestBody ProfileCreateRequest request
     ) {
-        // 임시: 테스트용 - oAuth2User가 null이면 userId 1 사용
-        Long userId = (oAuth2User != null) ? oAuth2User.getId() : 1L;
+        Long userId = oAuth2User.getId();
         ProfileResponse response = profileService.createProfile(userId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -35,8 +34,7 @@ public class ProfileController {
     public ResponseEntity<ProfileResponse> getMyProfile(
             @AuthenticationPrincipal CustomOAuth2User oAuth2User
     ) {
-        // 임시: 테스트용 - oAuth2User가 null이면 userId 1 사용
-        Long userId = (oAuth2User != null) ? oAuth2User.getId() : 1L;
+        Long userId = oAuth2User.getId();
         ProfileResponse response = profileService.getProfile(userId);
         return ResponseEntity.ok(response);
     }
@@ -46,8 +44,7 @@ public class ProfileController {
             @AuthenticationPrincipal CustomOAuth2User oAuth2User,
             @Valid @RequestBody ProfileCreateRequest request
     ) {
-        // 임시: 테스트용 - oAuth2User가 null이면 userId 1 사용
-        Long userId = (oAuth2User != null) ? oAuth2User.getId() : 1L;
+        Long userId = oAuth2User.getId();
         ProfileResponse response = profileService.updateProfile(userId, request);
         return ResponseEntity.ok(response);
     }
@@ -60,8 +57,7 @@ public class ProfileController {
     public ResponseEntity<List<ProfileResponse>> getMatchedProfiles(
             @AuthenticationPrincipal CustomOAuth2User oAuth2User
     ) {
-        // 임시: 테스트용 - oAuth2User가 null이면 userId 1 사용
-        Long userId = (oAuth2User != null) ? oAuth2User.getId() : 1L;
+        Long userId = oAuth2User.getId();
         List<ProfileResponse> responses = profileService.getMatchedProfiles(userId);
         return ResponseEntity.ok(responses);
     }
@@ -74,8 +70,7 @@ public class ProfileController {
     public ResponseEntity<List<ProfileResponse>> getUnmatchedProfiles(
             @AuthenticationPrincipal CustomOAuth2User oAuth2User
     ) {
-        // 임시: 테스트용 - oAuth2User가 null이면 userId 1 사용
-        Long userId = (oAuth2User != null) ? oAuth2User.getId() : 1L;
+        Long userId = oAuth2User.getId();
         List<ProfileResponse> responses = profileService.getUnmatchedProfiles(userId);
         return ResponseEntity.ok(responses);
     }

@@ -1,5 +1,6 @@
 package com.example.transitlove.jwt;
 
+import com.example.transitlove.oauth2.user.CustomOAuth2User;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -50,18 +51,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (token != null && jwtTokenProvider.validateToken(token)) {
             try {
+                Long userId = jwtTokenProvider.getUserIdFromToken(token);
                 String email = jwtTokenProvider.getEmailFromToken(token);
                 String role = jwtTokenProvider.getUserRole(token);
 
-                // Spring Security 인증 객체 생성
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                // CustomOAuth2User 객체 생성
+                CustomOAuth2User customOAuth2User = CustomOAuth2User.create(
+                        userId,
                         email,
-                        null,
+                        role,
                         Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
                 );
 
+                // Spring Security 인증 객체 생성 - principal을 CustomOAuth2User로 설정
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        customOAuth2User,
+                        null,
+                        customOAuth2User.getAuthorities()
+                );
+
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-                log.debug("JWT 인증 성공: {} ({})", email, role);
+                log.debug("JWT 인증 성공: userId={}, email={}, role={}", userId, email, role);
             } catch (Exception e) {
                 log.warn("JWT 인증 실패: {}", e.getMessage());
             }
