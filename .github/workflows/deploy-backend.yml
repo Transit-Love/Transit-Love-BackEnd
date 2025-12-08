@@ -3,6 +3,7 @@ name: Deploy Backend
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -24,8 +25,8 @@ jobs:
       - name: Build Spring Boot (Gradle)
         run: ./gradlew clean build -x test
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
+      - name: Upload artifact (for record)   # v4로 업그레이드
+        uses: actions/upload-artifact@v4
         with:
           name: spring-app
           path: build/libs/*.jar
@@ -40,9 +41,10 @@ jobs:
           chmod 600 deploy_key
 
           JAR_FILE=$(ls build/libs/*.jar | head -n 1)
+          echo "Will copy: $JAR_FILE"
 
-          scp -i deploy_key -o StrictHostKeyChecking=no $JAR_FILE $EC2_USER@$EC2_HOST:~/app.jar
+          scp -i deploy_key -o StrictHostKeyChecking=no "$JAR_FILE" "$EC2_USER@$EC2_HOST:~/app.jar"
 
-          ssh -i deploy_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "
-            nohup java -jar app.jar > app.log 2>&1 &
+          ssh -i deploy_key -o StrictHostKeyChecking=no "$EC2_USER@$EC2_HOST" "
+            nohup java -jar ~/app.jar > ~/app.log 2>&1 &
           "
