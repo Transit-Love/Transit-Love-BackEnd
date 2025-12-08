@@ -214,6 +214,11 @@ public class TempChatController {
     // ===== Helper Methods =====
 
     private Long getProfileIdFromOAuth2User(CustomOAuth2User oauth2User) {
+        // JWT 필터에서 CustomOAuth2User를 생성하므로 null이 아님
+        if (oauth2User == null) {
+            throw new IllegalArgumentException("인증 정보를 찾을 수 없습니다.");
+        }
+
         User user = userRepository.findBySchoolEmail(oauth2User.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
