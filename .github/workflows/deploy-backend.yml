@@ -20,7 +20,7 @@ jobs:
           java-version: '17'
 
       - name: Build Spring Boot (Gradle)
-        working-directory: ./backend
+        working-directory: ./transitLove
         run: |
           chmod +x ./gradlew || true
           ./gradlew clean build -x test
