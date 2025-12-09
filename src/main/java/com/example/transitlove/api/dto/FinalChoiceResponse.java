@@ -34,7 +34,7 @@ public class FinalChoiceResponse {
                 .myProfileId(myProfileId)
                 .partnerProfileId(partner.getId())
                 .partnerNickname(partner.getNickname())
-                .partnerMbti(partner.getMbti())
+                .partnerMbti(partner.getMbti() != null ? partner.getMbti().getValue() : null)
                 .isChanged(isChanged)
                 .finalizedAt(LocalDateTime.now())
                 .build();

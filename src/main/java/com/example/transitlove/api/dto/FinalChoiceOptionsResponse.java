@@ -56,7 +56,7 @@ public class FinalChoiceOptionsResponse {
             return ChatPartnerDto.builder()
                     .profileId(profile.getId())
                     .nickname(profile.getNickname())
-                    .mbti(profile.getMbti())
+                    .mbti(profile.getMbti() != null ? profile.getMbti().getValue() : null)
                     .totalMessageCount(messageCount)
                     .lastMessageAt(lastMessageAt)
                     .build();

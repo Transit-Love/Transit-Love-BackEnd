@@ -1,6 +1,7 @@
 package com.example.transitlove.config;
 
 import com.example.transitlove.domain.entity.*;
+import com.example.transitlove.domain.enums.MBTI;
 import com.example.transitlove.domain.repository.BalanceGameRepository;
 import com.example.transitlove.domain.repository.KeywordRepository;
 import com.example.transitlove.domain.repository.ProfileRepository;
@@ -110,7 +111,7 @@ public class DataLoader implements CommandLineRunner {
                 Profile profile = Profile.builder()
                         .user(user)
                         .nickname(userData[1])
-                        .mbti(userData[2])
+                        .mbti(MBTI.from(userData[2]))
                         .build();
                 profile = profileRepository.save(profile);
 

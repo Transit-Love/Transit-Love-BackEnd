@@ -2,6 +2,7 @@ package com.example.transitlove.domain.vo;
 
 import com.example.transitlove.domain.entity.BalanceGameAnswer;
 import com.example.transitlove.domain.entity.Profile;
+import com.example.transitlove.domain.enums.MBTI;
 import lombok.Value;
 
 import java.util.List;
@@ -51,14 +52,17 @@ public class ProfileSimilarity {
      * - 1글자 일치: 0.25
      * - 불일치: 0.0
      */
-    private static double calculateMBTIScore(String mbti1, String mbti2) {
-        if (mbti1 == null || mbti2 == null || mbti1.length() != 4 || mbti2.length() != 4) {
+    private static double calculateMBTIScore(MBTI mbti1, MBTI mbti2) {
+        if (mbti1 == null || mbti2 == null) {
             return 0.0;
         }
 
+        String mbti1Str = mbti1.getValue();
+        String mbti2Str = mbti2.getValue();
+
         int matchCount = 0;
         for (int i = 0; i < 4; i++) {
-            if (mbti1.charAt(i) == mbti2.charAt(i)) {
+            if (mbti1Str.charAt(i) == mbti2Str.charAt(i)) {
                 matchCount++;
             }
         }

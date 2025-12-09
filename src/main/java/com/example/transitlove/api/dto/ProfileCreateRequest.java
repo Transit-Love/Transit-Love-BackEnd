@@ -1,5 +1,6 @@
 package com.example.transitlove.api.dto;
 
+import com.example.transitlove.domain.enums.MBTI;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -23,8 +24,7 @@ public class ProfileCreateRequest {
     @Size(max = 500, message = "프로필 이미지 URL은 500자 이하여야 합니다")
     private String profileImageUrl;
 
-    @Size(min = 4, max = 4, message = "MBTI는 4자여야 합니다")
-    private String mbti;
+    private MBTI mbti;
 
     @NotEmpty(message = "키워드를 최소 1개 이상 선택해야 합니다")
     private List<Long> keywordIds;

@@ -24,7 +24,7 @@ public class MatchRecommendationResponse {
         return MatchRecommendationResponse.builder()
                 .profileId(similarity.getProfile2().getId())
                 .nickname(similarity.getProfile2().getNickname())
-                .mbti(similarity.getProfile2().getMbti())
+                .mbti(similarity.getProfile2().getMbti() != null ? similarity.getProfile2().getMbti().getValue() : null)
                 .similarityPercentage(similarity.getTotalScorePercentage())
                 .mbtiScore((int)(similarity.getMbtiScore() * 100))
                 .balanceGameScore((int)(similarity.getBalanceGameScore() * 100))

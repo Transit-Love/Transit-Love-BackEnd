@@ -39,12 +39,14 @@ public class AutoMatchResponse {
                 .myProfile(ProfileSummaryDto.builder()
                         .id(isProfile1 ? match.getProfile1().getId() : match.getProfile2().getId())
                         .nickname(isProfile1 ? match.getProfile1().getNickname() : match.getProfile2().getNickname())
-                        .mbti(isProfile1 ? match.getProfile1().getMbti() : match.getProfile2().getMbti())
+                        .mbti((isProfile1 ? match.getProfile1().getMbti() : match.getProfile2().getMbti()) != null ?
+                              (isProfile1 ? match.getProfile1().getMbti() : match.getProfile2().getMbti()).getValue() : null)
                         .build())
                 .partnerProfile(ProfileSummaryDto.builder()
                         .id(isProfile1 ? match.getProfile2().getId() : match.getProfile1().getId())
                         .nickname(isProfile1 ? match.getProfile2().getNickname() : match.getProfile1().getNickname())
-                        .mbti(isProfile1 ? match.getProfile2().getMbti() : match.getProfile1().getMbti())
+                        .mbti((isProfile1 ? match.getProfile2().getMbti() : match.getProfile1().getMbti()) != null ?
+                              (isProfile1 ? match.getProfile2().getMbti() : match.getProfile1().getMbti()).getValue() : null)
                         .build())
                 .matchType(match.getMatchType().name())
                 .similarityPercentage((int)(match.getSimilarityScore() * 100))

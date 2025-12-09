@@ -43,7 +43,7 @@ public class TempChatResponse {
                 .otherProfile(ProfileSummaryDto.builder()
                         .id(otherProfile.getId())
                         .nickname(otherProfile.getNickname())
-                        .mbti(otherProfile.getMbti())
+                        .mbti(otherProfile.getMbti() != null ? otherProfile.getMbti().getValue() : null)
                         .build())
                 .createdAt(tempChat.getCreatedAt())
                 .expiresAt(tempChat.getExpiresAt())

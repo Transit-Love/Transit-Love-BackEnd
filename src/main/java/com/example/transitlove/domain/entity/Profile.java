@@ -1,5 +1,7 @@
 package com.example.transitlove.domain.entity;
 
+import com.example.transitlove.domain.converter.MBTIConverter;
+import com.example.transitlove.domain.enums.MBTI;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,8 +34,9 @@ public class Profile {
     @Column(length = 500)
     private String profileImageUrl;
 
+    @Convert(converter = MBTIConverter.class)
     @Column(length = 4)
-    private String mbti;
+    private MBTI mbti;
 
     @OneToMany(mappedBy = "profile", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -58,7 +61,7 @@ public class Profile {
         updatedAt = LocalDateTime.now();
     }
 
-    public void updateProfile(String nickname, String mbti, String profileImageUrl) {
+    public void updateProfile(String nickname, MBTI mbti, String profileImageUrl) {
         this.nickname = nickname;
         this.mbti = mbti;
         this.profileImageUrl = profileImageUrl;

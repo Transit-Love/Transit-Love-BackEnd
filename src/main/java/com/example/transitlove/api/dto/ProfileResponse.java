@@ -46,7 +46,7 @@ public class ProfileResponse {
                 .id(profile.getId())
                 .nickname(profile.getNickname())
                 .profileImageUrl(profile.getProfileImageUrl())
-                .mbti(profile.getMbti())
+                .mbti(profile.getMbti() != null ? profile.getMbti().getValue() : null)
                 .keywords(profile.getProfileKeywords().stream()
                         .map(pk -> KeywordDto.builder()
                                 .id(pk.getKeyword().getId())

@@ -40,7 +40,7 @@ public class ChatRoomResponse {
                 .roomType(chatRoom.getRoomType())
                 .otherProfileId(otherProfile.getId())
                 .otherNickname(otherProfile.getNickname())
-                .otherMbti(otherProfile.getMbti())
+                .otherMbti(otherProfile.getMbti() != null ? otherProfile.getMbti().getValue() : null)
                 .createdAt(chatRoom.getCreatedAt())
                 .lastMessageAt(chatRoom.getLastMessageAt())
                 .expiresAt(chatRoom.getExpiresAt())
